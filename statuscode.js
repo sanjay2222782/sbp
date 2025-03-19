@@ -22,7 +22,6 @@ const statuscode = {
     GATEWAY_TIMEOUT: 504
   };
 
-
   const catchcode = {
      message : "Something went Wrong",
      success:false,
