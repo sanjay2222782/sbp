@@ -4,7 +4,7 @@ const bcrypt= require("bcryptjs");
 const { generateOTP, sendOTPEmail } = require("../../verifey/otpHelper");
 const { catchcode, statuscode } = require("../../../statuscode");
 // const { generateOTP, sendOTPEmail,verifyOTP} = require("../../verifey/otpHelper");
-
+const speakeasy = require("speakeasy");
 
 // signup
 const signup = async (req, res) => {
@@ -140,11 +140,60 @@ const forgetPassword = async (req, res) => {
   }
 };
 
+
+const verifyUserOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).send({ success: false, message: "Email and OTP are required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).send({ success: false, message: "User not found" });
+    }
+
+    // Log for debugging: Ensure OTP and expiration are correct
+    console.log("User OTP:", user.otp);
+    console.log("User OTP Expiry:", user.otpExpires);
+    console.log("Provided OTP:", otp);
+    console.log("Current Date:", new Date());
+
+    // Check if OTP exists and verify it
+    if (!user.otp || !user.otpExpires || user.otpExpires < new Date()) {
+      return res.status(400).send({ success: false, message: "OTP has expired or is invalid" });
+    }
+
+    // Verify OTP with the stored secret
+    const isValidOTP = speakeasy.totp.verify({
+      secret: process.env.OTP_SECRET_KEY,  // Secret stored in .env
+      encoding: "base32",
+      token: otp,
+      window: 2,  // Increased window size to 2 steps for leniency
+    });
+
+    if (!isValidOTP) {
+      return res.status(400).send({ success: false, message: "Invalid OTP" });
+    }
+
+    return res.status(200).send({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ success: false, message: "Server error" });
+  }
+};
+
+
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword, confirmNewPassword } = req.body;
+    const { email, newPassword, confirmNewPassword } = req.body;
 
-    if (!email || !otp || !newPassword || !confirmNewPassword) {
+    if (!email ||  !newPassword || !confirmNewPassword) {
       return res.send({status:statuscode.BAD_REQUEST, success: false, message: "All fields are required" });
     }
 
@@ -159,15 +208,7 @@ const resetPassword = async (req, res) => {
     }
 
     // Validate OTP from database
-    if (user.otp !== otp) {
-      return res.send({status:statuscode.BAD_REQUEST, success: 0, message: "Invalid OTP" });
-    }
-
-    // Check if OTP is expired
-    if (user.otpExpires < new Date()) {
-      return res.send({status:statuscode.BAD_REQUEST, success: 0, message: "OTP has expired" });
-    }
-
+   
     // Hash the new password
     const hash = await bcrypt.hash(newPassword, 10);
     user.password = hash;
@@ -222,5 +263,5 @@ try {
 
 
 
-module.exports = { signup ,login,forgetPassword,resetPassword, userdetails, recomendeduser};
+module.exports = { signup ,login,forgetPassword,resetPassword,verifyUserOTP, userdetails, recomendeduser};
 

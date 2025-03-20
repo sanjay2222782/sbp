@@ -2,7 +2,7 @@
 
 const { Router } = require("express");
 const { check } = require("express-validator");
-const { login, signup, forgetPassword, resetPassword, userdetails, recomendeduser } = require("../../Controller/user/user-register");
+const { login, signup, forgetPassword, resetPassword, userdetails, recomendeduser, verifyUserOTP } = require("../../Controller/user/user-register");
 
 
 const publicrouter = Router();
@@ -32,6 +32,7 @@ publicrouter.post(
 publicrouter.post("/login", login)
 publicrouter.patch("/forgetpassword",forgetPassword)
 publicrouter.patch("/resetpassword",resetPassword)
+publicrouter.patch("/verifyotp",verifyUserOTP)
 publicrouter.put("/update",userdetails)
 publicrouter.post("/recomenduser",recomendeduser)
 module.exports = {
