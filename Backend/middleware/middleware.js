@@ -1,31 +1,40 @@
-const jwt = require("jsonwebtoken")
-const User = require("../Model/user/user")
-const { model } = require("mongoose")
+const jwt = require("jsonwebtoken");
+const User = require("../Model/user/user");
 
-const genertaeMiddleware = (model) =>async(req,res,next)=>{
+const generateMiddleware = (model) => async (req, res, next) => {
     try {
-         req.headers.token
-        const token = req.headers.token
-        const decode =await  jwt.verify(token,process.env.JWT_SECRET)
+        // Token extract karein (Bearer token format bhi handle karein)
+        let token = req.headers.authorization || req.headers.token;
+        if (!token) {
+            return res.status(401).json({ success: false, message: "No token provided" });
+        }
         
-        
+        if (token.startsWith("Bearer ")) {
+            token = token.split(" ")[1]; // Remove "Bearer " prefix
+        }
 
-        const user = await model.findOne({email:decode.email})
-        req.user= user
-       
-        next()
+        // Decode token
+        const decode = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("Decoded Token:", decode); // Debugging
+
+        // User ko email ya _id ke through find karein
+        const user = await model.findOne({ _id: decode.userId }) || await model.findOne({ email: decode.email });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Ensure userId is attached
+        req.user = { userId: user._id, email: user.email };
+        next();
     } catch (error) {
-        console.log(error.message)
-        return res.send({
-            success:0,
-            Message:error.Message
-        })
+        console.error("Middleware Error:", error.message);
+        return res.status(401).json({ success: false, message: "Invalid token" });
     }
-}
-     const userMiddleware = genertaeMiddleware(User)
-   
-  
+};
+
+const userMiddleware = generateMiddleware(User);
+
 module.exports = {
-    
     userMiddleware
-}
+};

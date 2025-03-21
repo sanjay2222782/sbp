@@ -6,59 +6,119 @@ const { catchcode, statuscode } = require("../../../statuscode");
 // const { generateOTP, sendOTPEmail,verifyOTP} = require("../../verifey/otpHelper");
 const speakeasy = require("speakeasy");
 
-// signup
+// signup and google
+// method: post
+//endpoint - /user/register
 const signup = async (req, res) => {
   try {
-    const { name, email, password, confirm, phone, counteryCode} = req.body;
+    const { email, name, phone, countryCode, source, password, confirmPassword } = req.body;
 
-    if (!name || !email || !password || !confirm || !phone ) {
+    // Validate required fields
+    if (!email || !name) {
       return res.status(400).send({
-        success: 0,
+        success: false,
         message: "Please fill all the required details",
       });
     }
 
-    if (password !== confirm) {
-      return res.status(400).send({
-        success: 0,
-        message: "Password and Confirm Password do not match",
+    if (source === "google") {
+      // Google signup process
+      const existingUser = await User.findOne({ email });
+
+      if (existingUser) {
+        // User exists: generate and return token
+        const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET, {
+          expiresIn: '1h',
+        });
+        return res.status(200).send({
+          success: true,
+          message: "User logged in successfully",
+          token: token,
+          user: existingUser,
+        });
+      } else {
+        // User doesn't exist: create new user first without token
+        const newUser = await User.create({
+          name,
+          email,
+          phone,
+          countryCode,
+          source,
+        });
+
+        // Generate token for the newly created user
+        const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+          expiresIn: '1h',
+        });
+        // Save token in the database
+        newUser.token = token;
+        await newUser.save();
+
+        return res.status(201).send({
+          success: true,
+          message: "Your account has been created successfully",
+          token: token,
+          user: newUser,
+        });
+      }
+    } else {
+      // Normal signup process: validate password fields
+      if (!password || !confirmPassword) {
+        return res.status(400).send({
+          success: false,
+          message: "Please provide both password and confirm password",
+        });
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).send({
+          success: false,
+          message: "Password and Confirm Password do not match",
+        });
+      }
+
+      // Check if the user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).send({
+          success: false,
+          message: "User with this email already exists",
+        });
+      }
+
+      // Hash the password before saving it
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create a new user without generating a token
+      const newUser = await User.create({
+        name,
+        email,
+        phone,
+        countryCode,
+        password: hashedPassword,
+        source: "app",
+      });
+
+      return res.status(201).send({
+        success: true,
+        message: "Your account has been created successfully",
+        user: newUser,
       });
     }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).send({
-        success: 0,
-        message: "User with this email already exists",
-      });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    const newUser = await User.create({
-      name,
-      email,
-      password: hash,
-      phone,
-      counteryCode,
-      
-    });
-
-    
-    return res.send({
-      status:statuscode.CREATED,
-      success: 1,
-      message: "Your account has been created successfully",
-      details: newUser,
-    });
-
   } catch (error) {
-    console.log(error)
-    return res.send(catchcode);
+    console.error("Signup error:", error);
+    return res.status(500).send({
+      success: false,
+      message: "Something went wrong",
+    });
   }
 };
 
+
+
 // login user
+// method: post
+//endpoint - /user/login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -107,9 +167,10 @@ const login = async (req, res) => {
     return res.send(catchcode);
   }
 };
-// google login 
 
-// forgot password
+//  generateOTP & send 
+// method: patch
+//endpoint - /user/forgetpassword
 const forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -140,7 +201,9 @@ const forgetPassword = async (req, res) => {
   }
 };
 
-
+//  verifyUserOTP
+// method: patch
+//endpoint - /user/verifyotp
 const verifyUserOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -188,7 +251,9 @@ const verifyUserOTP = async (req, res) => {
   }
 };
 
-
+//  resetpassword otp
+// method: patch
+//endpoint - /user/resetpassword
 const resetPassword = async (req, res) => {
   try {
     const { email, newPassword, confirmNewPassword } = req.body;
@@ -225,7 +290,10 @@ const resetPassword = async (req, res) => {
     res.send(catchcode);
   }
 };
-// add videocat update user details 
+
+// video cat selet by user 
+// method: put
+//endpoint - /user/update
 const userdetails= async(req,res)=>{
  try {
   const { email, videocat } = req.body;
@@ -244,7 +312,9 @@ const userdetails= async(req,res)=>{
  }
 }
   
-// list of recomended user 
+// list of recomended user select by user  
+// method: post
+//endpoint - /user/recomenduser
 const recomendeduser = async(req,res)=>{
 try {
   const data = await User.find({videocat:req.body.videocat})

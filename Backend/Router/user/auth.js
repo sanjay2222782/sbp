@@ -1,15 +1,14 @@
 
 
 const { Router } = require("express");
-const { follow, unfollow, followers, following, updateuser, friendlist, logout } = require("../../Controller/user/auth");
+const { follow, unfollow, followers, following, updateuser, friendlist, logout, getProfile } = require("../../Controller/user/auth");
 const { productrouter } = require("./product");
-const { commentrouter } = require("./comment");
 const { shoprouter } = require("./shop");
-const { likerouter } = require("./like");
 const { videorouter } = require("./video");
 const path = require("path")
 const multer = require("multer");
-const { chatrouter } = require("./chatRoutes");
+const { likelist, unlikevideo, likevideo } = require("../../Controller/user/like");
+const { videocomment, deletecomment } = require("../../Controller/user/comment");
 const authrouter = Router();
 
 // user multer
@@ -45,21 +44,22 @@ authrouter.get("/following", following)
 authrouter.put("/updateuser", uploads.single("profilepicture"),updateuser);
 authrouter.get("/friends", friendlist);
 authrouter.put("/logout", logout);
+authrouter.get("/getprofile", getProfile)
 
 
 //comment
-authrouter.use("/comment", commentrouter)
+authrouter.post("/comment", videocomment)
+authrouter.delete("/deletecomment", deletecomment)
 // shop router
 authrouter.use("/shop", shoprouter)
 //like router
-authrouter.use("/like", likerouter)
-// videorouter
-authrouter.use("/like", videorouter)
+authrouter.post("/likevideo", likevideo)
+authrouter.delete("/unlike", unlikevideo)
+authrouter.get("/likelist", likelist)
+
 // product
 authrouter.use("/product",productrouter);
 
-// user chat
-authrouter.use("/chat",chatrouter);
 
 
 

@@ -83,6 +83,32 @@ return res.send({message: "list success fully get ",
   }
 }
 
+const getProfile = async (req, res) => {
+  try {
+    // Debug: Check what is attached by middleware
+    console.log("Decoded Token in req.user:", req.user);
+
+    // Extract userId from decoded token payload
+    const userId = req.user?.userId || req.user?.id; // Use whichever property is available
+    if (!userId) {
+      return res.status(400).send({
+        success: false,
+        message: "User id not provided",
+      });
+    }
+
+    const data = await User.findById(userId);
+    return res.status(200).send({
+      message: "Get your Profile",
+      success: true,
+      status: statuscode.OK,
+      data: data,
+    });
+  } catch (error) {
+    console.error("Error in getProfile:", error.message);
+    return res.send(catchcode);
+  }
+};
 
 
 // Updated User Profile API
@@ -190,6 +216,7 @@ const logout = async(req,res)=>{
   }
 }
 
+
   module.exports= {
     follow ,
      unfollow,
@@ -198,4 +225,5 @@ const logout = async(req,res)=>{
      updateuser,
      friendlist,
      logout,
+     getProfile
   }
