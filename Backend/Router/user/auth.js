@@ -50,6 +50,7 @@ authrouter.get("/getprofile", getProfile)
 //comment
 authrouter.post("/comment", videocomment)
 authrouter.delete("/deletecomment", deletecomment)
+
 // shop router
 authrouter.use("/shop", shoprouter)
 //like router
